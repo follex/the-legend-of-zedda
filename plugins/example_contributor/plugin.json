@@ -1,0 +1,9 @@
+{
+    "name": "Plugin di Esempio",
+    "author": "esempio_ufficiale",
+    "version": "1.0",
+    "description": "Plugin dimostrativo per i contributor",
+    "contributes": {
+        "enemies": ["enemies/goblin.py"]
+    }
+}
