@@ -11,28 +11,32 @@ from settings import *
 from splash_screen import SplashScreen
 from character_select import CharacterSelect
 from name_input import NameInput
+from level import Level                  
 from core import load_all_plugins
 
 class Game:
-	def __init__(self, name, gender, role):
-		self.player_name = name
-		self.gender      = gender
-		self.role        = role
-		self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-		pygame.display.set_caption(TITLE)
-		self.clock  = pygame.time.Clock()
-		print(f"Gioco avviato: {name} {PLAYER_SURNAME} | {gender} | {role}")
+    def __init__(self, name, gender, role):
+        self.player_name = name
+        self.gender      = gender
+        self.role        = role
+        self.screen      = pygame.display.set_mode((WIDTH, HEIGHT))
+        pygame.display.set_caption(TITLE)
+        self.clock       = pygame.time.Clock()
 
-	def run(self):
-		while True:
-			for event in pygame.event.get():
-				if event.type == pygame.QUIT:
-					pygame.quit()
-					sys.exit()
+        # Carica il primo livello
+        self.level = Level('data/maps/gonnostramatza.tmx', self.screen)
 
-			self.screen.fill(WATER_COLOR)
-			pygame.display.update()
-			self.clock.tick(FPS)
+    def run(self):
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+
+            self.screen.fill(WATER_COLOR)
+            self.level.run()
+            pygame.display.update()
+            self.clock.tick(FPS)
 
 if __name__ == '__main__':
 	pygame.init()
