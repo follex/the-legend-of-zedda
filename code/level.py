@@ -60,24 +60,36 @@ class YSortCameraGroup(pygame.sprite.Group):
     def __init__(self, screen):
         super().__init__()
         self.display_surf = screen
-        self.half_w = screen.get_width()  // 2
+        self.half_w = screen.get_width() // 2
         self.half_h = screen.get_height() // 2
         self.offset = pygame.math.Vector2()
 
     def custom_draw(self, player=None):
         if player:
-            self.offset.x = player.rect.centerx - self.half_w
-            self.offset.y = player.rect.centery  - self.half_h
+            # Dimensioni totali della mappa
+            map_w = 40 * 64   # numero tile * tilesize
+            map_h = 30 * 64
+
+            # Centra la camera sul player
+            cam_x = player.rect.centerx - self.half_w
+            cam_y = player.rect.centery - self.half_h
+
+            # Limita la camera ai bordi della mappa
+            cam_x = max(0, min(cam_x, map_w - self.half_w * 2))
+            cam_y = max(0, min(cam_y, map_h - self.half_h * 2))
+
+            self.offset.x = cam_x
+            self.offset.y = cam_y
         else:
             self.offset = pygame.math.Vector2(0, 0)
 
-        # Prima disegna i tile del pavimento (FloorLayer)
+        # Prima il pavimento
         for sprite in sorted(self.sprites(), key=lambda s: s.rect.centery):
             if hasattr(sprite, 'is_floor') and sprite.is_floor:
                 offset_pos = sprite.rect.topleft - self.offset
                 self.display_surf.blit(sprite.image, offset_pos)
 
-        # Poi disegna tutto il resto (player, blocchi, nemici)
+        # Poi tutto il resto
         for sprite in sorted(self.sprites(), key=lambda s: s.rect.centery):
             if not hasattr(sprite, 'is_floor') or not sprite.is_floor:
                 offset_pos = sprite.rect.topleft - self.offset
