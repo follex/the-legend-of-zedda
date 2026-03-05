@@ -2,43 +2,46 @@
 from abc import ABC, abstractmethod
 
 class BaseItem(ABC):
-    """
-    Classe base per tutti gli oggetti (pozioni, chiavi, tesori, ecc.).
-    
-    Esempio di utilizzo:
-        from core.interfaces.base_item import BaseItem
-        
-        class PozioneDiVita(BaseItem):
-            name        = "Pozione di Vita"
-            item_type   = "consumable"
-            sprite_path = "graphics/pozione_vita.png"
-            
-            def use(self, player):
-                player.health = min(player.max_health, player.health + 50)
-    """
+	"""
+	Classe base per tutti gli oggetti.
 
-    name:        str  = "Oggetto Sconosciuto"
-    description: str  = ""
-    sprite_path: str  = ""
-    stackable:   bool = True       # può avere più copie nello stesso slot
-    max_stack:   int  = 99
+	Gli oggetti di solito hanno solo sprite_path statico.
+	Le animazioni sono opzionali (es. un oggetto che brilla/pulsa).
 
-    # Tipo: 'consumable' | 'key' | 'treasure' | 'equipment' | 'quest'
-    item_type:   str  = "consumable"
+	Esempio con animazione:
+		sprite_path = "graphics/pozione.png"
+		animations = {
+			'idle': "graphics/pozione_glow.png",   # spritesheet con effetto luce
+		}
+	"""
 
-    @abstractmethod
-    def use(self, player):
-        """Cosa succede quando il player usa l'oggetto."""
-        pass
+	name:        str  = "Oggetto Sconosciuto"
+	description: str  = ""
+	item_type:   str  = "consumable"  # 'consumable'|'key'|'treasure'|'equipment'|'quest'
+	stackable:   bool = True
+	max_stack:   int  = 99
 
-    def on_pickup(self, player):
-        """Chiamato quando il player raccoglie l'oggetto."""
-        from core.event_bus import event_bus
-        event_bus.emit('item_picked_up', {
-            'item':   self.name,
-            'player': player
-        })
+	sprite_path: str  = ""
 
-    def on_drop(self, player):
-        """Chiamato quando il player lascia cadere l'oggetto."""
-        pass
+	animations:  dict = {}
+	animation_frame_duration: int = 200
+
+	VALID_ANIMATION_KEYS = {
+		'idle', 'pickup',
+	}
+
+	@abstractmethod
+	def use(self, player):
+		pass
+
+	def on_pickup(self, player):
+		from core.event_bus import event_bus
+		event_bus.emit('item_picked_up', {'item': self.name, 'player': player})
+
+	def on_drop(self, player):
+		pass
+
+	def get_current_sprite(self, action: str = 'idle') -> str:
+		if self.animations and action in self.animations:
+			return self.animations[action]
+		return self.sprite_path
