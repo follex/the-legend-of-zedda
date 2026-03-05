@@ -1,65 +1,62 @@
 # code/level.py
 import pygame
-from pytmx.util_pygame import load_pygame
 import os
+from pytmx.util_pygame import load_pygame
 
 class Level:
-    def __init__(self, map_file, screen):
-        self.screen        = screen
-        self.display_surf  = screen
-        self.half_w        = screen.get_width()  // 2
-        self.half_h        = screen.get_height() // 2
+    def __init__(self, map_file, screen, player_name='', gender='male', role='warrior'):
+        self.screen = screen
+        self.half_w = screen.get_width()  // 2
+        self.half_h = screen.get_height() // 2
 
-        # Carica la mappa TMX
         base     = os.path.dirname(os.path.abspath(__file__))
         map_path = os.path.join(base, '..', map_file)
         self.tmx_data = load_pygame(map_path)
 
-        # Gruppi di sprite
         self.visible_sprites  = YSortCameraGroup(screen)
         self.obstacle_sprites = pygame.sprite.Group()
 
         self._load_map()
 
     def _load_map(self):
-        """Carica tutti i layer della mappa TMX."""
+        from pytmx import TiledTileLayer
+        from player import Player
 
-        # Layer del terreno (Floor)
         for layer in self.tmx_data.visible_layers:
-            from pytmx import TiledTileLayer
             if not isinstance(layer, TiledTileLayer):
                 continue
-
             for x, y, surf in layer.tiles():
-                pos  = (x * self.tmx_data.tilewidth,
-                        y * self.tmx_data.tileheight)
-
+                pos = (x * self.tmx_data.tilewidth,
+                       y * self.tmx_data.tileheight)
                 if layer.name == 'FloorLayer':
-                    Tile(pos, surf, [self.visible_sprites])
-
+                    Tile(pos, surf, [self.visible_sprites], is_floor=True)
                 elif layer.name == 'BlockLayer':
-                    Tile(pos, surf, [self.visible_sprites, self.obstacle_sprites])
+                    Tile(pos, surf, [self.visible_sprites, self.obstacle_sprites], is_floor=False)
+
+        # Spawna il player al centro della mappa
+        map_w = self.tmx_data.width  * self.tmx_data.tilewidth
+        map_h = self.tmx_data.height * self.tmx_data.tileheight
+        self.player = Player(
+            pos=(map_w // 2, map_h // 2),
+            groups=[self.visible_sprites],
+            obstacle_sprites=self.obstacle_sprites
+        )
 
     def run(self):
-        """Aggiorna e disegna tutto."""
-        self.visible_sprites.custom_draw()
+        self.visible_sprites.custom_draw(self.player)
+        self.visible_sprites.update()
 
 
 class Tile(pygame.sprite.Sprite):
-    def __init__(self, pos, surf, groups):
+    def __init__(self, pos, surf, groups, is_floor=False):
         super().__init__(groups)
-        self.image = surf
-        self.rect  = self.image.get_rect(topleft=pos)
-        # Hitbox leggermente ridotta rispetto al tile
-        self.hitbox = self.rect.inflate(0, -10)
+        self.image    = surf
+        self.rect     = self.image.get_rect(topleft=pos)
+        self.hitbox   = self.rect.inflate(0, -10)
+        self.is_floor = is_floor
 
 
 class YSortCameraGroup(pygame.sprite.Group):
-    """
-    Gruppo di sprite con camera che segue il player
-    e ordinamento verticale (gli sprite più in basso
-    vengono disegnati sopra quelli più in alto).
-    """
     def __init__(self, screen):
         super().__init__()
         self.display_surf = screen
@@ -68,14 +65,20 @@ class YSortCameraGroup(pygame.sprite.Group):
         self.offset = pygame.math.Vector2()
 
     def custom_draw(self, player=None):
-        # Calcola l'offset della camera centrata sul player
         if player:
             self.offset.x = player.rect.centerx - self.half_w
             self.offset.y = player.rect.centery  - self.half_h
         else:
             self.offset = pygame.math.Vector2(0, 0)
 
-        # Disegna gli sprite ordinati per asse Y (chi è più in basso, sopra)
+        # Prima disegna i tile del pavimento (FloorLayer)
         for sprite in sorted(self.sprites(), key=lambda s: s.rect.centery):
-            offset_pos = sprite.rect.topleft - self.offset
-            self.display_surf.blit(sprite.image, offset_pos)
+            if hasattr(sprite, 'is_floor') and sprite.is_floor:
+                offset_pos = sprite.rect.topleft - self.offset
+                self.display_surf.blit(sprite.image, offset_pos)
+
+        # Poi disegna tutto il resto (player, blocchi, nemici)
+        for sprite in sorted(self.sprites(), key=lambda s: s.rect.centery):
+            if not hasattr(sprite, 'is_floor') or not sprite.is_floor:
+                offset_pos = sprite.rect.topleft - self.offset
+                self.display_surf.blit(sprite.image, offset_pos)
