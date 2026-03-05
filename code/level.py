@@ -15,6 +15,7 @@ class Level:
 
         self.visible_sprites  = YSortCameraGroup(screen)
         self.obstacle_sprites = pygame.sprite.Group()
+        self.attack_sprites   = pygame.sprite.Group()
 
         self._load_map()
 
@@ -41,10 +42,12 @@ class Level:
             groups=[self.visible_sprites],
             obstacle_sprites=self.obstacle_sprites
         )
+        self.player.attack_group = [self.visible_sprites, self.attack_sprites]
 
     def run(self):
         self.visible_sprites.custom_draw(self.player)
         self.visible_sprites.update()
+        self.attack_sprites.update()
 
 
 class Tile(pygame.sprite.Sprite):
@@ -60,21 +63,18 @@ class YSortCameraGroup(pygame.sprite.Group):
     def __init__(self, screen):
         super().__init__()
         self.display_surf = screen
-        self.half_w = screen.get_width() // 2
+        self.half_w = screen.get_width()  // 2
         self.half_h = screen.get_height() // 2
         self.offset = pygame.math.Vector2()
 
     def custom_draw(self, player=None):
         if player:
-            # Dimensioni totali della mappa
-            map_w = 40 * 64   # numero tile * tilesize
+            map_w = 40 * 64
             map_h = 30 * 64
 
-            # Centra la camera sul player
             cam_x = player.rect.centerx - self.half_w
-            cam_y = player.rect.centery - self.half_h
+            cam_y = player.rect.centery  - self.half_h
 
-            # Limita la camera ai bordi della mappa
             cam_x = max(0, min(cam_x, map_w - self.half_w * 2))
             cam_y = max(0, min(cam_y, map_h - self.half_h * 2))
 
