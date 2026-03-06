@@ -9,8 +9,8 @@ from settings import *
 from splash_screen import SplashScreen
 from character_select import CharacterSelect
 from name_input import NameInput
-from level import Level
 from core.loader import load_all_plugins
+
 
 class Game:
 	def __init__(self, name, gender, role):
@@ -20,24 +20,36 @@ class Game:
 		self.screen      = pygame.display.set_mode((WIDTH, HEIGHT))
 		pygame.display.set_caption(TITLE)
 		self.clock       = pygame.time.Clock()
+		self._new_level()
 
+	def _new_level(self):
+		from level import Level
 		self.level = Level(
 			'data/maps/gonnostramatza.tmx',
 			self.screen,
-			player_name=name
+			player_name=self.player_name
 		)
 
 	def run(self):
+		from game_over import GameOver
+		game_over_screen = GameOver(self.screen)
+
 		while True:
-			for event in pygame.event.get():
+			events = pygame.event.get()
+			for event in events:
 				if event.type == pygame.QUIT:
 					pygame.quit()
 					sys.exit()
 
 			self.screen.fill(WATER_COLOR)
-			self.level.run()
+			self.level.run(events=events)
 			pygame.display.update()
 			self.clock.tick(FPS)
+
+			if self.level.player.health <= 0:
+				result = game_over_screen.run()
+				if result == 'restart':
+					self._new_level()
 
 
 if __name__ == '__main__':

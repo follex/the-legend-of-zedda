@@ -2,6 +2,15 @@
 import pygame
 import os
 
+# Dati delle armi — danno e cooldown per tipo
+WEAPON_DATA = {
+	'sword':  { 'damage': 25,  'cooldown': 400 },
+	'axe':    { 'damage': 40,  'cooldown': 700 },
+	'lance':  { 'damage': 30,  'cooldown': 500 },
+	'rapier': { 'damage': 20,  'cooldown': 250 },
+	'sai':    { 'damage': 15,  'cooldown': 200 },
+}
+
 class Player(pygame.sprite.Sprite):
 	def __init__(self, pos, groups, obstacle_sprites, player_name=''):
 		super().__init__(groups)
@@ -24,6 +33,12 @@ class Player(pygame.sprite.Sprite):
 		# ── Salute ────────────────────────────────────────────────────
 		self.health     = 100
 		self.max_health = 100
+
+		# ── Esperienza e livello ──────────────────────────────────────
+		self.level        = 1
+		self.exp          = 0
+		self.exp_to_next  = 100
+		self.attack_power = 25
 
 		# ── Identità ──────────────────────────────────────────────────
 		self.player_name = player_name
@@ -99,7 +114,7 @@ class Player(pygame.sprite.Sprite):
 		self.image = frames[int(self.frame_index)]
 		self.rect  = self.image.get_rect(center=self.hitbox.center)
 
-	def _input(self):
+	def _input(self, events=[]):
 		keys = pygame.key.get_pressed()
 
 		if not self.attacking:
@@ -127,6 +142,22 @@ class Player(pygame.sprite.Sprite):
 			self.direction       = pygame.math.Vector2()
 			self.hit_this_attack = set()
 			self._create_weapon()
+
+		# Cambia arma con Q
+		for event in events:
+			if event.type == pygame.KEYDOWN and event.key == pygame.K_q:
+				self._cycle_weapon_type()
+
+	def _cycle_weapon_type(self):
+		"""Cicla tra le armi disponibili."""
+		weapons = ['sword', 'axe', 'lance', 'rapier', 'sai']
+		idx = weapons.index(self.weapon) if self.weapon in weapons else 0
+		self.weapon = weapons[(idx + 1) % len(weapons)]
+
+		# Aggiorna danno e cooldown in base all'arma
+		data = WEAPON_DATA.get(self.weapon, WEAPON_DATA['sword'])
+		self.attack_power    = data['damage']
+		self.attack_cooldown = data['cooldown']
 
 	def _create_weapon(self):
 		from weapon import Weapon
@@ -186,8 +217,18 @@ class Player(pygame.sprite.Sprite):
 		if self.health <= 0:
 			self.health = 0
 
-	def update(self):
-		self._input()
+	def gain_exp(self, amount):
+		self.exp += amount
+		if self.exp >= self.exp_to_next:
+			self.exp         -= self.exp_to_next
+			self.level       += 1
+			self.exp_to_next  = int(self.exp_to_next * 1.5)
+			self.max_health  += 20
+			self.health       = self.max_health
+			self.attack_power += 5
+
+	def update(self, events=[]):
+		self._input(events)
 		self._get_status()
 		self._move()
 		self._animate()

@@ -61,14 +61,34 @@ class Level:
 		)
 		self.player.attack_group = [self.visible_sprites, self.attack_sprites]
 
-		# ── Nemici di test ────────────────────────────────────────────
-		enemy_positions = [
-			(200, 200), (500, 300), (800, 200),
-			(300, 600), (700, 500), (1000, 400),
+		# ── Nemici ────────────────────────────────────────────────────
+		enemy_spawns = [
+			# Raccoon — angoli
+			('raccoon', (150,  150)),
+			('raccoon', (2400, 150)),
+			('raccoon', (150,  1750)),
+			('raccoon', (2400, 1750)),
+
+			# Spirit — zone intermedie
+			('spirit',  (640,  480)),
+			('spirit',  (1920, 480)),
+			('spirit',  (640,  1440)),
+			('spirit',  (1920, 1440)),
+
+			# Bamboo — fasce laterali
+			('bamboo',  (300,  900)),
+			('bamboo',  (2200, 600)),
+			('bamboo',  (1280, 300)),
+			('bamboo',  (1280, 1600)),
+
+			# Squid — zone centrali
+			('squid',   (800,  700)),
+			('squid',   (1700, 1200)),
+			('squid',   (960,  1400)),
 		]
-		for pos in enemy_positions:
+		for name, pos in enemy_spawns:
 			Enemy(
-				name='raccoon',
+				name=name,
 				pos=pos,
 				groups=[self.visible_sprites, self.enemy_sprites],
 				obstacle_sprites=self.obstacle_sprites,
@@ -79,15 +99,17 @@ class Level:
 
 	def _player_attack_logic(self):
 		if self.player.attacking and self.player.weapon_sprite:
-			for enemy in self.enemy_sprites:
+			for enemy in list(self.enemy_sprites):
 				if enemy not in self.player.hit_this_attack:
 					if self.player.weapon_sprite.rect.colliderect(enemy.hitbox):
-						enemy.take_damage(25)
+						enemy.take_damage(self.player.attack_power)
 						self.player.hit_this_attack.add(enemy)
+						if not enemy.alive():
+							self.player.gain_exp(enemy.exp_reward)
 
-	def run(self):
+	def run(self, events=[]):
 		self.visible_sprites.custom_draw(self.player)
-		self.visible_sprites.update()
+		self.visible_sprites.update(events=events)
 		self.attack_sprites.update()
 		self._player_attack_logic()
 		self.hud.draw()
@@ -107,12 +129,11 @@ class SceneryObject(pygame.sprite.Sprite):
 		super().__init__(groups)
 		self.image  = surf
 		self.rect   = self.image.get_rect(topleft=pos)
-		# Hitbox solo nella metà inferiore — la chioma è attraversabile
 		self.hitbox = pygame.Rect(
 			self.rect.x + 20,
 			self.rect.y + self.rect.height // 2.25,
 			self.rect.width - 40,
-			32					# modificato da self.rect.height // 2
+			32
 		)
 		obstacle_sprites.add(self)
 
@@ -141,13 +162,11 @@ class YSortCameraGroup(pygame.sprite.Group):
 		else:
 			self.offset = pygame.math.Vector2(0, 0)
 
-		# Prima il pavimento
 		for sprite in sorted(self.sprites(), key=lambda s: s.rect.centery):
 			if hasattr(sprite, 'is_floor') and sprite.is_floor:
 				offset_pos = sprite.rect.topleft - self.offset
 				self.display_surf.blit(sprite.image, offset_pos)
 
-		# Poi tutto il resto
 		for sprite in sorted(self.sprites(), key=lambda s: s.rect.centery):
 			if not hasattr(sprite, 'is_floor') or not sprite.is_floor:
 				offset_pos = sprite.rect.topleft - self.offset

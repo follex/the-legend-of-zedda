@@ -146,49 +146,49 @@ class Enemy(pygame.sprite.Sprite):
 		if self.health <= 0:
 			self.kill()
 
-	def update(self):
-		direction, distance = self._get_player_distance()
-		self._get_status(distance)
-		self._cooldowns()
-		if self.status == 'attack':
-			self._attack()
-		elif self.status == 'move':
-			self._move(direction)
-		self._animate()
+	def update(self, events=[]):
+			direction, distance = self._get_player_distance()
+			self._get_status(distance)
+			self._cooldowns()
+			if self.status == 'attack':
+				self._attack()
+			elif self.status == 'move':
+				self._move(direction)
+			self._animate()
 
 
 # ── Dati statistiche per tipo di nemico ──────────────────────────────────
 ENEMY_DATA = {
 	'raccoon': {
-		'health':       100,
-		'damage':       20,
-		'speed':        2,
-		'aggro_radius': 300,
+		'health':        100,
+		'damage':        20,
+		'speed':         2,
+		'aggro_radius':  300,
 		'attack_radius': 60,
-		'exp_reward':   150,
+		'exp_reward':    150,   # 100 * 1.5
 	},
 	'spirit': {
-		'health':       50,
-		'damage':       8,
-		'speed':        4,
-		'aggro_radius': 350,
+		'health':        50,
+		'damage':        8,
+		'speed':         4,
+		'aggro_radius':  350,
 		'attack_radius': 50,
-		'exp_reward':   80,
+		'exp_reward':    75,    # 50 * 1.5
 	},
 	'bamboo': {
-		'health':       70,
-		'damage':       12,
-		'speed':        3,
-		'aggro_radius': 250,
+		'health':        70,
+		'damage':        12,
+		'speed':         3,
+		'aggro_radius':  250,
 		'attack_radius': 55,
-		'exp_reward':   100,
+		'exp_reward':    105,   # 70 * 1.5
 	},
 	'squid': {
-		'health':       80,
-		'damage':       15,
-		'speed':        2,
-		'aggro_radius': 280,
+		'health':        80,
+		'damage':        15,
+		'speed':         2,
+		'aggro_radius':  280,
 		'attack_radius': 55,
-		'exp_reward':   120,
+		'exp_reward':    120,   # 80 * 1.5
 	},
 }

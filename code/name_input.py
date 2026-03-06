@@ -16,7 +16,7 @@ class NameInput:
 		self.font_small  = pygame.font.SysFont('georgia', 24)
 
 		self.name         = ''
-		self.max_chars    = 12
+		self.max_chars    = 20
 		self.cursor_vis   = True
 		self.cursor_timer = 0
 
