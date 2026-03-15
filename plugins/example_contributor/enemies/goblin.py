@@ -2,14 +2,14 @@
 from core.interfaces.base_enemy import BaseEnemy
 
 class Goblin(BaseEnemy):
-	name       = "Goblin"
+	name       = "goblin"
 	health     = 60
 	damage     = 15
 	speed      = 3.0
 	exp_reward = 20
 
 	# Immagine statica — funziona sempre
-	sprite_path = "graphics/goblin.png"
+	sprite_path = "graphics/monsters/goblin/0.png"
 
 	# Animazioni — commentate per ora, pronte per essere usate
 	# animations = {
@@ -27,4 +27,4 @@ class Goblin(BaseEnemy):
 		player.take_damage(self.damage)
 
 	def on_death(self):
-		self.drop_item("moneta_di_bronzo")
+		self.drop_item("Moneta di Bronzo")

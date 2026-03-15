@@ -95,19 +95,21 @@ def load_all_plugins(plugins_dir: str = None):
 			for relative_path in files:
 				full_path = os.path.join(plugin_dir, relative_path)
 
-				# Controlla che il file esista
 				if not os.path.exists(full_path):
 					print(f"  [WARNING] File non trovato: '{relative_path}'. Ignorato.")
 					warning_count += 1
 					continue
 
-				# Carica il modulo Python dinamicamente
 				classes = _load_module(full_path, base_class, author)
 
 				for cls_name, cls in classes.items():
-					# Valida le animazioni dichiarate
+					# ── Salva il percorso del contributor sulla classe ──────
+					# Questo permette a Enemy._load_animations() di trovare
+					# le sprite nella cartella giusta del plugin:
+					# es. plugins/example_contributor/graphics/monsters/goblin/
+					cls._plugin_dir = os.path.abspath(plugin_dir)
+
 					warning_count += _validate_animations(cls, plugin_dir, author)
-					# Registra la classe nel registry
 					success = registry.register(category, cls_name, cls, author)
 					if success:
 						loaded_count += 1
@@ -120,37 +122,24 @@ def load_all_plugins(plugins_dir: str = None):
 
 
 def _validate_animations(cls, plugin_dir: str, author: str) -> int:
-	"""
-	Controlla che i file delle animazioni dichiarati esistano su disco
-	e che le chiavi usate siano valide.
-	Restituisce il numero di warning trovati.
-	"""
 	warnings   = 0
 	animations = getattr(cls, 'animations', {})
 	valid_keys = getattr(cls, 'VALID_ANIMATION_KEYS', set())
 
 	for action, anim_path in animations.items():
-		# Chiave non riconosciuta
 		if valid_keys and action not in valid_keys:
-			print(f"  [WARNING] '{cls.__name__}' → "
-				  f"chiave animazione sconosciuta: '{action}'")
+			print(f"  [WARNING] '{cls.__name__}' → chiave animazione sconosciuta: '{action}'")
 			warnings += 1
 			continue
-		# File non trovato su disco
 		full = os.path.join(plugin_dir, anim_path)
 		if not os.path.exists(full):
-			print(f"  [WARNING] '{cls.__name__}' → "
-				  f"file animazione non trovato: '{anim_path}'")
+			print(f"  [WARNING] '{cls.__name__}' → file animazione non trovato: '{anim_path}'")
 			warnings += 1
 
 	return warnings
 
 
 def _load_module(filepath: str, base_class, author: str) -> dict:
-	"""
-	Carica un file .py e restituisce un dizionario
-	{nome_classe: classe} per ogni classe che eredita da base_class.
-	"""
 	classes = {}
 
 	try:

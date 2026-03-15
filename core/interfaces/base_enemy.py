@@ -35,12 +35,10 @@ class BaseEnemy(ABC):
 	exp_reward:  int   = 10
 
 	# ── Grafica ────────────────────────────────────────────────────────
-	sprite_path: str   = ""        # immagine statica (sempre obbligatoria come fallback)
+	sprite_path: str   = ""
+	animations:  dict  = {}
+	animation_frame_duration: int = 120
 
-	animations:  dict  = {}        # dizionario azione → percorso spritesheet (opzionale)
-	animation_frame_duration: int = 120   # millisecondi per fotogramma
-
-	# Chiavi valide per il dizionario animations
 	VALID_ANIMATION_KEYS = {
 		'idle',
 		'walk_down', 'walk_up', 'walk_left', 'walk_right',
@@ -65,27 +63,24 @@ class BaseEnemy(ABC):
 		pass
 
 	def on_spawn(self):
-		"""Chiamato quando il nemico appare nella mappa."""
 		pass
 
 	def on_hit(self, damage: int):
-		"""Chiamato quando il nemico riceve un colpo."""
 		self.health -= damage
 
 	def drop_item(self, item_name: str):
-		"""Segnala al registry di spawnare un oggetto."""
+		"""
+		Segnala al sistema di spawnare un oggetto a terra.
+		Passa anche la posizione del nemico se disponibile (_drop_pos).
+		"""
 		from core.event_bus import event_bus
 		event_bus.emit('enemy_drop_item', {
 			'enemy': self.name,
-			'item':  item_name
+			'item':  item_name,
+			'pos':   getattr(self, '_drop_pos', None),
 		})
 
 	def get_current_sprite(self, action: str = 'idle') -> str:
-		"""
-		Restituisce il percorso dell'immagine per l'azione richiesta.
-		Se le animazioni non sono definite o l'azione non esiste,
-		ritorna sprite_path come fallback statico.
-		"""
 		if self.animations and action in self.animations:
 			return self.animations[action]
 		return self.sprite_path

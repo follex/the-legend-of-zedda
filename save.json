@@ -1,0 +1,148 @@
+{
+  "version": 1,
+  "player": {
+    "name": "Alex",
+    "gender": "male",
+    "role": "warrior",
+    "level": 3,
+    "exp": 95,
+    "exp_to_next": 225,
+    "health": 180,
+    "max_health": 180,
+    "base_attack": 45,
+    "weapon": "axe",
+    "pos": [
+      1275,
+      1141
+    ]
+  },
+  "inventory": [
+    {
+      "index": 0,
+      "class_name": "MonetaDiBronzo",
+      "quantity": 1
+    }
+  ],
+  "quest": {
+    "quest_id": "main_quest",
+    "status": "not_started",
+    "current_step": 0
+  },
+  "map": {
+    "enemies": [
+      {
+        "name": "raccoon",
+        "pos": [
+          150,
+          150
+        ],
+        "health": 100
+      },
+      {
+        "name": "raccoon",
+        "pos": [
+          2400,
+          150
+        ],
+        "health": 100
+      },
+      {
+        "name": "raccoon",
+        "pos": [
+          150,
+          1750
+        ],
+        "health": 100
+      },
+      {
+        "name": "raccoon",
+        "pos": [
+          2400,
+          1750
+        ],
+        "health": 100
+      },
+      {
+        "name": "spirit",
+        "pos": [
+          640,
+          480
+        ],
+        "health": 50
+      },
+      {
+        "name": "spirit",
+        "pos": [
+          1920,
+          480
+        ],
+        "health": 50
+      },
+      {
+        "name": "spirit",
+        "pos": [
+          640,
+          1440
+        ],
+        "health": 50
+      },
+      {
+        "name": "spirit",
+        "pos": [
+          1920,
+          1440
+        ],
+        "health": 50
+      },
+      {
+        "name": "bamboo",
+        "pos": [
+          300,
+          900
+        ],
+        "health": 70
+      },
+      {
+        "name": "bamboo",
+        "pos": [
+          2200,
+          600
+        ],
+        "health": 70
+      },
+      {
+        "name": "bamboo",
+        "pos": [
+          1280,
+          300
+        ],
+        "health": 70
+      },
+      {
+        "name": "squid",
+        "pos": [
+          800,
+          700
+        ],
+        "health": 80
+      },
+      {
+        "name": "Goblin",
+        "pos": [
+          1920,
+          480
+        ],
+        "health": 60
+      }
+    ],
+    "items": [
+      {
+        "class_name": "MonetaDiBronzo",
+        "pos": [
+          1540,
+          1055
+        ]
+      }
+    ]
+  }
+}
