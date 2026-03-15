@@ -9,6 +9,8 @@ from dialogue_ui import DialogueUI
 from npc import NPC
 from quest import build_main_quest
 import save_manager
+from world_map import WorldMapScreen
+from zones import get_all_zones
 
 
 class Level:
@@ -19,6 +21,7 @@ class Level:
 		self.player_name = player_name
 		self.role        = role
 		self.map_file    = map_file
+		self.travel_to   = None   # impostato quando il player vuole viaggiare
 		self.gender      = gender
 		self.save_data   = save_data
 
@@ -317,6 +320,12 @@ class Level:
 
 		event_bus.on('enemy_drop_item', on_enemy_drop)
 
+	def _open_world_map(self):
+		"""Apre la schermata mappa mondo. Ritorna map_file scelto o None."""
+		zones = get_all_zones()
+		wm    = WorldMapScreen(self.screen, zones, current_map=self.map_file)
+		return wm.run()
+
 	def save(self):
 		"""Salva lo stato corrente del gioco."""
 		return save_manager.save(self.player, self.main_quest, level=self)
@@ -374,6 +383,13 @@ class Level:
 			# Dialogo aperto — assorbe tutti gli input
 			if self.dialogue_ui.visible:
 				self.dialogue_ui.handle_event(event)
+				continue
+
+			# M — mappa mondo
+			if event.type == pygame.KEYDOWN and event.key == pygame.K_m:
+				dest = self._open_world_map()
+				if dest:
+					self.travel_to = dest
 				continue
 
 			# I — inventario

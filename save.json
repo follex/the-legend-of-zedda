@@ -1,19 +1,19 @@
 {
   "version": 1,
   "player": {
-    "name": "Alex",
+    "name": "Ss",
     "gender": "male",
     "role": "warrior",
-    "level": 3,
-    "exp": 95,
-    "exp_to_next": 225,
+    "level": 4,
+    "exp": 170,
+    "exp_to_next": 337,
     "health": 180,
-    "max_health": 180,
-    "base_attack": 45,
+    "max_health": 200,
+    "base_attack": 50,
     "weapon": "axe",
     "pos": [
-      1275,
-      1141
+      2342,
+      1232
     ]
   },
   "inventory": [
@@ -55,14 +55,6 @@
         "health": 100
       },
       {
-        "name": "raccoon",
-        "pos": [
-          2400,
-          1750
-        ],
-        "health": 100
-      },
-      {
         "name": "spirit",
         "pos": [
           640,
@@ -75,22 +67,6 @@
         "pos": [
           1920,
           480
-        ],
-        "health": 50
-      },
-      {
-        "name": "spirit",
-        "pos": [
-          640,
-          1440
-        ],
-        "health": 50
-      },
-      {
-        "name": "spirit",
-        "pos": [
-          1920,
-          1440
         ],
         "health": 50
       },
@@ -139,8 +115,8 @@
       {
         "class_name": "MonetaDiBronzo",
         "pos": [
-          1540,
-          1055
+          230,
+          586
         ]
       }
     ]

@@ -16,6 +16,7 @@ from splash_screen import SplashScreen
 from character_select import CharacterSelect
 from name_input import NameInput
 from core.loader import load_all_plugins
+from main_menu import MainMenu
 
 
 class Game:
@@ -41,6 +42,26 @@ class Game:
 			save_data=self._save_data,
 		)
 		self._save_data = None   # usato solo alla prima creazione
+
+	def _travel_to(self, map_file):
+		"""Carica una nuova mappa mantenendo lo stato del player."""		# Salva lo stato corrente in un save temporaneo in memoria
+		old_level = self.level
+		temp_save = {
+			'version': 1,
+			'player':  save_manager._serialize_player(old_level.player),
+			'inventory': save_manager._serialize_inventory(old_level.player),
+			'quest':   save_manager._serialize_quest(old_level.main_quest),
+			'map':     None,   # nuova mappa — spawn fresco
+		}
+		from level import Level
+		self.level = Level(
+			map_file,
+			self.screen,
+			player_name=self.player_name,
+			gender=self.gender,
+			role=self.role,
+			save_data=temp_save,
+		)
 
 	def _on_resize(self, new_w, new_h):
 		"""Aggiorna tutti i componenti che dipendono dalla dimensione della finestra."""
@@ -90,10 +111,28 @@ class Game:
 			pygame.display.update()
 			self.clock.tick(FPS)
 
+			# Viaggio verso un'altra mappa
+			if self.level.travel_to:
+				self._travel_to(self.level.travel_to)
+				game_over_screen = GameOver(self.screen)
+
 			if self.level.player.health <= 0:
 				result = game_over_screen.run()
 				if result == 'restart':
 					self._new_level()
+					game_over_screen = GameOver(self.screen)
+				elif result == 'load':
+					save_data = save_manager.load()
+					if save_data:
+						p = save_data['player']
+						self.player_name = p['name']
+						self.gender      = p['gender']
+						self.role        = p['role']
+						self._save_data  = save_data
+						self._new_level()
+						game_over_screen = GameOver(self.screen)
+				elif result == 'menu':
+					return
 
 
 if __name__ == '__main__':
@@ -114,30 +153,41 @@ if __name__ == '__main__':
 	splash = SplashScreen(screen, clock, logo_path=logo_path)
 	splash.run()
 
-	# ── Controlla se esiste un salvataggio ───────────────────────────
-	if save_manager.exists():
-		save_data = save_manager.load()
-		if save_data:
-			p = save_data['player']
-			game = Game(
-				name=p['name'],
-				gender=p['gender'],
-				role=p['role'],
-				screen=screen,
-				save_data=save_data,
-			)
-			game.run()
-
-	# ── Nessun save — nuova partita ──────────────────────────────────
+	# ── Loop principale — torna al menu dopo ogni partita ───────────
 	while True:
-		char_select = CharacterSelect(screen)
-		gender, role = char_select.run()
+		# Menu principale
+		menu   = MainMenu(screen, has_save=save_manager.exists())
+		choice = menu.run()
 
-		name_input = NameInput(screen, gender, role)
-		name = name_input.run()
+		if choice == 'continue':
+			# Carica il salvataggio
+			save_data = save_manager.load()
+			if save_data:
+				p    = save_data['player']
+				game = Game(
+					name=p['name'],
+					gender=p['gender'],
+					role=p['role'],
+					screen=screen,
+					save_data=save_data,
+				)
+				game.run()
 
-		if name:
-			break
+		elif choice == 'new_game':
+			# Selezione personaggio
+			while True:
+				char_select = CharacterSelect(screen)
+				gender, role = char_select.run()
 
-	game = Game(name, gender, role, screen)
-	game.run()
+				name_input = NameInput(screen, gender, role)
+				name = name_input.run()
+
+				if name:
+					break
+
+			# Se esiste un save, chiedi conferma prima di sovrascriverlo
+			if save_manager.exists():
+				save_manager.delete()
+
+			game = Game(name, gender, role, screen)
+			game.run()
