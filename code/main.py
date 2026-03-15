@@ -17,6 +17,7 @@ from character_select import CharacterSelect
 from name_input import NameInput
 from core.loader import load_all_plugins
 from main_menu import MainMenu
+from pause_menu import PauseMenu
 
 
 class Game:
@@ -29,6 +30,9 @@ class Game:
 		self.clock       = pygame.time.Clock()
 		self._save_data  = save_data   # usato solo al primo _new_level
 		self._save_msg   = 0           # timer messaggio "Salvato!"
+		self._paused            = False
+		self._pause_menu        = None
+		self._pause_just_opened = False
 		self._new_level()
 
 	def _new_level(self):
@@ -44,24 +48,38 @@ class Game:
 		self._save_data = None   # usato solo alla prima creazione
 
 	def _travel_to(self, map_file):
-		"""Carica una nuova mappa mantenendo lo stato del player."""		# Salva lo stato corrente in un save temporaneo in memoria
+		"""Carica una nuova mappa mantenendo lo stato del player."""
+		# Salva stato corrente in memoria
 		old_level = self.level
 		temp_save = {
-			'version': 1,
-			'player':  save_manager._serialize_player(old_level.player),
+			'version':   1,
+			'player':    save_manager._serialize_player(old_level.player),
 			'inventory': save_manager._serialize_inventory(old_level.player),
-			'quest':   save_manager._serialize_quest(old_level.main_quest),
-			'map':     None,   # nuova mappa — spawn fresco
+			'quest':     save_manager._serialize_quest(old_level.main_quest),
+			'map':       None,
 		}
-		from level import Level
-		self.level = Level(
-			map_file,
-			self.screen,
-			player_name=self.player_name,
-			gender=self.gender,
-			role=self.role,
-			save_data=temp_save,
-		)
+
+		# Scegli il livello giusto in base alla mappa
+		CASTLE_MAP = 'data/maps/castello_casteddu.tmx'
+		if map_file == CASTLE_MAP:
+			from castle_level import CastleLevel
+			self.level = CastleLevel(
+				screen=self.screen,
+				player_name=self.player_name,
+				gender=self.gender,
+				role=self.role,
+				save_data=temp_save,
+			)
+		else:
+			from level import Level
+			self.level = Level(
+				map_file,
+				self.screen,
+				player_name=self.player_name,
+				gender=self.gender,
+				role=self.role,
+				save_data=temp_save,
+			)
 
 	def _on_resize(self, new_w, new_h):
 		"""Aggiorna tutti i componenti che dipendono dalla dimensione della finestra."""
@@ -95,13 +113,76 @@ class Game:
 					self._on_resize(event.w, event.h)
 					game_over_screen = GameOver(self.screen)
 
+				# ESC — apri o chiudi menu pausa
+				if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+					if self._paused:
+						self._paused = False
+					else:
+						self._paused     = True
+						self._pause_menu = PauseMenu(
+							self.screen,
+							has_save=save_manager.exists()
+						)
+
 				# F5 — salva la partita
 				if event.type == pygame.KEYDOWN and event.key == pygame.K_F5:
 					if self.level.save():
 						self._save_msg = 2000   # mostra messaggio per 2 secondi
 
-			self.screen.fill(WATER_COLOR)
-			self.level.run(events=events)
+			# Sfondo diverso per il castello
+			if hasattr(self.level, 'map_file') and 'castello' in self.level.map_file:
+				self.screen.fill((8, 6, 12))
+			else:
+				self.screen.fill(WATER_COLOR)
+
+			# Aggiorna il gioco solo se non in pausa
+			# Filtra ESC dagli eventi passati al level (lo gestisce main)
+			level_events = [e for e in events
+				if not (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE)]
+			if not self._paused:
+				self.level.run(events=level_events)
+			else:
+				self.level.run(events=[])   # disegna senza aggiornare
+
+			# Menu pausa
+			if self._paused and self._pause_menu:
+				dt = self.clock.get_time()
+				self._pause_menu.update(dt)
+				self._pause_menu.draw()
+				# Salta gli eventi nel frame in cui la pausa è stata aperta
+				# (evita che ESC apra e chiuda il menu nello stesso frame)
+				# Filtra ESC dagli eventi del menu pausa
+				# (ESC viene gestito da main per aprire/chiudere, non dal menu)
+				pause_events = [e for e in events
+					if not (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE)]
+				for event in pause_events:
+					result = self._pause_menu.handle_event(event)
+					if result == 'resume':
+						self._paused = False
+					elif result == 'save':
+						if self.level.save():
+							self._save_msg = 2000
+						self._paused = False
+					elif result == 'load':
+						sd = save_manager.load()
+						if sd:
+							p = sd['player']
+							self.player_name = p['name']
+							self.gender      = p['gender']
+							self.role        = p['role']
+							self._save_data  = sd
+							self._new_level()
+						self._paused = False
+					elif result == 'restart':
+						self._save_data = None
+						self._new_level()
+						self._paused = False
+					elif result == 'menu':
+						self._paused = False
+						return
+					elif result == 'quit':
+						pygame.quit()
+						sys.exit()
 
 			# Messaggio "Salvato!" temporaneo
 			if self._save_msg > 0:

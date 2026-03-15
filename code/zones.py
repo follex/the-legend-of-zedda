@@ -35,9 +35,21 @@ BASE_ZONES = [
 ]
 
 
-def get_all_zones():
-    """Ritorna la lista completa delle zone, incluse quelle dai plugin."""
-    zones = list(BASE_ZONES)
+def get_all_zones(quest=None):
+    """
+    Ritorna la lista completa delle zone, incluse quelle dai plugin.
+    Se viene passata la quest, sblocca le zone in base allo stato.
+    """
+    import copy
+    zones = copy.deepcopy(BASE_ZONES)
+
+    # Sblocca il castello se la quest è attiva allo step giusto
+    if quest is not None:
+        from quest import ACTIVE, COMPLETED
+        if quest.status in (ACTIVE, COMPLETED) and quest.current_step >= 1:
+            for z in zones:
+                if 'castello_casteddu' in z.get('map_file', ''):
+                    z['unlocked'] = True
 
     # Aggiunge zone dai plugin (BaseMapZone con map_position definito)
     try:

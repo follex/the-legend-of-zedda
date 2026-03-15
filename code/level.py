@@ -322,7 +322,7 @@ class Level:
 
 	def _open_world_map(self):
 		"""Apre la schermata mappa mondo. Ritorna map_file scelto o None."""
-		zones = get_all_zones()
+		zones = get_all_zones(quest=self.main_quest)
 		wm    = WorldMapScreen(self.screen, zones, current_map=self.map_file)
 		return wm.run()
 

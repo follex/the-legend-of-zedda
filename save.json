@@ -1,28 +1,22 @@
 {
   "version": 1,
   "player": {
-    "name": "Ss",
+    "name": "Aaa",
     "gender": "male",
     "role": "warrior",
-    "level": 4,
-    "exp": 170,
-    "exp_to_next": 337,
-    "health": 180,
-    "max_health": 200,
-    "base_attack": 50,
+    "level": 1,
+    "exp": 0,
+    "exp_to_next": 100,
+    "health": 140,
+    "max_health": 140,
+    "base_attack": 35,
     "weapon": "axe",
     "pos": [
-      2342,
-      1232
+      1280,
+      1000
     ]
   },
-  "inventory": [
-    {
-      "index": 0,
-      "class_name": "MonetaDiBronzo",
-      "quantity": 1
-    }
-  ],
+  "inventory": [],
   "quest": {
     "quest_id": "main_quest",
     "status": "not_started",
@@ -55,6 +49,14 @@
         "health": 100
       },
       {
+        "name": "raccoon",
+        "pos": [
+          2400,
+          1750
+        ],
+        "health": 100
+      },
+      {
         "name": "spirit",
         "pos": [
           640,
@@ -67,6 +69,22 @@
         "pos": [
           1920,
           480
+        ],
+        "health": 50
+      },
+      {
+        "name": "spirit",
+        "pos": [
+          640,
+          1440
+        ],
+        "health": 50
+      },
+      {
+        "name": "spirit",
+        "pos": [
+          1920,
+          1440
         ],
         "health": 50
       },
@@ -95,6 +113,14 @@
         "health": 70
       },
       {
+        "name": "bamboo",
+        "pos": [
+          1280,
+          1600
+        ],
+        "health": 70
+      },
+      {
         "name": "squid",
         "pos": [
           800,
@@ -103,9 +129,25 @@
         "health": 80
       },
       {
+        "name": "squid",
+        "pos": [
+          1700,
+          1200
+        ],
+        "health": 80
+      },
+      {
+        "name": "squid",
+        "pos": [
+          960,
+          1400
+        ],
+        "health": 80
+      },
+      {
         "name": "Goblin",
         "pos": [
-          1920,
+          640,
           480
         ],
         "health": 60
@@ -115,8 +157,15 @@
       {
         "class_name": "MonetaDiBronzo",
         "pos": [
-          230,
-          586
+          1075,
+          878
+        ]
+      },
+      {
+        "class_name": "MonetaDiBronzo",
+        "pos": [
+          306,
+          666
         ]
       }
     ]
