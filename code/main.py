@@ -71,15 +71,40 @@ class Game:
 				save_data=temp_save,
 			)
 		else:
-			from level import Level
-			self.level = Level(
-				map_file,
-				self.screen,
-				player_name=self.player_name,
-				gender=self.gender,
-				role=self.role,
-				save_data=temp_save,
-			)
+			# Controlla se è una zona plugin con renderer procedurale
+			plugin_cls = self._get_zone_cls(map_file)
+			if plugin_cls and getattr(plugin_cls, 'procedural', False):
+				# Zona plugin con renderer proprio
+				renderer_cls = plugin_cls.renderer_class
+				self.level = renderer_cls(
+					screen=self.screen,
+					player_name=self.player_name,
+					gender=self.gender,
+					role=self.role,
+					save_data=temp_save,
+				)
+			else:
+				# Zona TMX standard
+				from level import Level
+				self.level = Level(
+					map_file,
+					self.screen,
+					player_name=self.player_name,
+					gender=self.gender,
+					role=self.role,
+					save_data=temp_save,
+				)
+
+	def _get_zone_cls(self, map_file):
+		"""Cerca la classe BaseMapZone che corrisponde al map_file dato."""
+		try:
+			from core.registry import registry
+			for name, cls in registry.get_all('map_zones').items():
+				if getattr(cls, 'tilemap_path', '') == map_file:
+					return cls
+		except Exception:
+			pass
+		return None
 
 	def _on_resize(self, new_w, new_h):
 		"""Aggiorna tutti i componenti che dipendono dalla dimensione della finestra."""

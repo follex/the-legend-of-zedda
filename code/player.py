@@ -81,7 +81,7 @@ class Player(pygame.sprite.Sprite):
 		self.speed        = role_stats['speed']
 		self.base_attack  = role_stats['attack_power']   # bonus fisso del ruolo
 		self.weapon       = role_stats['weapon']
-		self.attack_power = self.base_attack + WEAPON_DATA.get(self.weapon, WEAPON_DATA['sword'])['damage']
+		self.attack_power = self.base_attack + WEAPON_DATA.get(self.weapon, WEAPON_DATA['sword'])['damage']  # aggiornato dopo
 
 		# ── Esperienza e livello ──────────────────────────────────────
 		self.level       = 1
@@ -279,13 +279,37 @@ class Player(pygame.sprite.Sprite):
 				if pygame.K_1 <= event.key <= pygame.K_8:
 					self.selected_slot = event.key - pygame.K_1
 
+	def _get_all_weapons(self):
+		"""Ritorna lista di tutti i nomi arma: hardcoded + plugin Registry."""
+		weapons = list(WEAPON_DATA.keys())
+		try:
+			from core.registry import registry
+			for name in registry.get_all('weapons'):
+				if name not in weapons:
+					weapons.append(name)
+		except Exception:
+			pass
+		return weapons
+
 	def _cycle_weapon_type(self):
-		weapons = ['sword', 'axe', 'lance', 'rapier', 'sai']
+		weapons = self._get_all_weapons()
 		idx = weapons.index(self.weapon) if self.weapon in weapons else 0
 		self.weapon = weapons[(idx + 1) % len(weapons)]
+		self._apply_weapon_stats()
 
+	def _apply_weapon_stats(self):
+		"""Applica danno e cooldown dell'arma corrente (hardcoded o plugin)."""		# Cerca prima nei plugin
+		try:
+			from core.registry import registry
+			cls = registry.get('weapons', self.weapon)
+			if cls is not None:
+				self.attack_power    = self.base_attack + cls.damage
+				self.attack_cooldown = int(cls.cooldown * 1000)  # secondi → ms
+				return
+		except Exception:
+			pass
+		# Fallback hardcoded
 		data = WEAPON_DATA.get(self.weapon, WEAPON_DATA['sword'])
-		# danno totale = bonus ruolo + danno arma
 		self.attack_power    = self.base_attack + data['damage']
 		self.attack_cooldown = data['cooldown']
 
@@ -361,8 +385,7 @@ class Player(pygame.sprite.Sprite):
 			self.max_health  += 20
 			self.health       = self.max_health
 			self.base_attack += 5
-			weapon_dmg        = WEAPON_DATA.get(self.weapon, WEAPON_DATA['sword'])['damage']
-			self.attack_power = self.base_attack + weapon_dmg
+			self._apply_weapon_stats()
 			try:
 				import sound_manager
 				sound_manager.play('level_up', volume=1.0)

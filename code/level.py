@@ -87,6 +87,20 @@ class Level:
 
 		self.hud = HUD(self.screen, self.player)
 
+		# ── HUD dai plugin ───────────────────────────────────────────
+		self._plugin_huds = []
+		try:
+			from core.registry import registry
+			for name, cls in registry.get_all('hud').items():
+				try:
+					hud_instance = cls()
+					self._plugin_huds.append(hud_instance)
+					print(f'[HUD] Caricato plugin HUD: {name}')
+				except Exception as e:
+					print(f'[HUD] Errore caricamento {name}: {e}')
+		except Exception:
+			pass
+
 		# ── Inventario UI ─────────────────────────────────────────────
 		self.inventory_ui = InventoryUI(self.screen, self.player)
 
@@ -125,6 +139,23 @@ class Level:
 			sound_manager.play_music(map_name)
 		except Exception as e:
 			print(f'[MUSIC] {e}')
+
+		# ── UI dai plugin ────────────────────────────────────────────
+		self._plugin_uis = []
+		try:
+			from core.registry import registry
+			for name, cls in registry.get_all('ui').items():
+				try:
+					ui_instance = cls()
+					self._plugin_uis.append(ui_instance)
+					print(f'[UI] Caricata plugin UI: {name}')
+					# Apri automaticamente se trigger è zone_enter
+					if getattr(cls, 'trigger', '') == 'zone_enter':
+						ui_instance.on_open({'player': self.player})
+				except Exception as e:
+					print(f'[UI] Errore caricamento {name}: {e}')
+		except Exception:
+			pass
 
 		# ── Listener drop oggetti dai nemici ─────────────────────────
 		self._register_drop_listener()
@@ -406,6 +437,13 @@ class Level:
 					if npc.try_talk(self.dialogue_ui):
 						break
 
+			# Passa eventi alle UI plugin
+			for pui in self._plugin_uis:
+				try:
+					pui.handle_event(event, {'player': self.player})
+				except Exception:
+					pass
+
 		# Aggiorna typewriter dialogo
 		self.dialogue_ui.update(dt)
 
@@ -424,7 +462,20 @@ class Level:
 			npc.draw_indicator(self.screen, self.visible_sprites.offset)
 
 		self.hud.draw()
+		# HUD dai plugin
+		for phud in self._plugin_huds:
+			if getattr(phud, 'visible', True):
+				try:
+					phud.draw(self.screen, self.player)
+				except Exception:
+					pass
 		self.inventory_ui.draw()
+		# UI dai plugin
+		for pui in self._plugin_uis:
+			try:
+				pui.draw(self.screen, {'player': self.player})
+			except Exception:
+				pass
 		self.dialogue_ui.draw()
 
 

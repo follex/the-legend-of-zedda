@@ -64,6 +64,7 @@ def get_all_zones(quest=None):
                     'map_file':     getattr(cls, 'tilemap_path', ''),
                     'map_position': pos,
                     'unlocked':     getattr(cls, 'unlocked', True),
+                    'plugin_cls':   cls,   # teniamo la classe per usi futuri
                 })
     except Exception:
         pass

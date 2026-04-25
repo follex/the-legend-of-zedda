@@ -1,233 +1,333 @@
 # code/castle_boss.py
 """
 Boss finale — Il Guardiano di Casteddu.
-Stat altissime, aggro_radius grande, effetti visivi speciali.
+Stat altissime, aggro_radius grande, sprite animati da Golden Axe.
+
+Struttura cartelle richiesta (relativa alla root del progetto):
+  graphics/boss/
+    left/          right/          up/          down/
+    left_idle/     right_idle/     up_idle/     down_idle/
+    left_attack/   right_attack/   up_attack/   down_attack/
+    death/
+
+Ogni cartella contiene PNG numerati: 0000.png, 0001.png, ...
 """
 import pygame
 import os
 import math
 
 
-BOSS_HEALTH       = 800
-BOSS_DAMAGE       = 35
-BOSS_SPEED        = 2.5
-BOSS_AGGRO_RADIUS = 400
+BOSS_HEALTH        = 800
+BOSS_DAMAGE        = 35
+BOSS_SPEED         = 2.5
+BOSS_AGGRO_RADIUS  = 400
 BOSS_ATTACK_RADIUS = 65
-BOSS_EXP          = 500
+BOSS_EXP           = 500
+
+# Velocità animazione (frame per tick di update)
+ANIM_SPEED_WALK   = 0.12
+ANIM_SPEED_ATTACK = 0.18
+ANIM_SPEED_DEATH  = 0.08
 
 
 class CastleBoss(pygame.sprite.Sprite):
-    """Boss finale del gioco."""
+	"""Boss finale del gioco con sprite animati."""
 
-    def __init__(self, pos, groups, obstacle_sprites, player):
-        super().__init__(groups)
+	def __init__(self, pos, groups, obstacle_sprites, player):
+		super().__init__(groups)
 
-        self.player           = player
-        self.obstacle_sprites = obstacle_sprites
+		self.player           = player
+		self.obstacle_sprites = obstacle_sprites
 
-        # ── Statistiche ───────────────────────────────────────────────
-        self.name          = 'Guardiano di Casteddu'
-        self.health        = BOSS_HEALTH
-        self.max_health    = BOSS_HEALTH
-        self.damage        = BOSS_DAMAGE
-        self.speed         = BOSS_SPEED
-        self.aggro_radius  = BOSS_AGGRO_RADIUS
-        self.attack_radius = BOSS_ATTACK_RADIUS
-        self.exp_reward    = BOSS_EXP
+		# ── Statistiche ───────────────────────────────────────────────
+		self.name          = 'Guardiano di Casteddu'
+		self.health        = BOSS_HEALTH
+		self.max_health    = BOSS_HEALTH
+		self.damage        = BOSS_DAMAGE
+		self.speed         = BOSS_SPEED
+		self.aggro_radius  = BOSS_AGGRO_RADIUS
+		self.attack_radius = BOSS_ATTACK_RADIUS
+		self.exp_reward    = BOSS_EXP
 
-        # ── Sprite ────────────────────────────────────────────────────
-        self.image  = self._make_sprite()
-        self.rect   = self.image.get_rect(center=pos)
-        self.hitbox = self.rect.inflate(-20, -20)
+		# ── Animazioni ────────────────────────────────────────────────
+		self.animations    = self._load_animations()
+		self.status        = 'down_idle'
+		self.facing        = 'down'       # ultima direzione affrontata
+		self.frame_index   = 0.0
+		self.is_dead       = False        # True: sta riproducendo animazione morte
+		self._death_done   = False        # True: animazione morte completata
 
-        # ── AI ────────────────────────────────────────────────────────
-        self.status          = 'idle'
-        self.can_attack      = True
-        self.attack_cooldown = 1200   # ms tra un attacco e l'altro
-        self.attack_time     = 0
-        self.hit_cooldown    = 500
-        self.hit_time        = 0
-        self.is_hit          = False
+		# Prima immagine
+		self.image  = self._current_frames()[0]
+		self.rect   = self.image.get_rect(center=pos)
+		self.hitbox = self.rect.inflate(-30, -20)
 
-        # ── Effetti visivi ────────────────────────────────────────────
-        self._anim_t     = 0.0
-        self._idle_bob   = 0.0
-        self._base_y     = float(pos[1])
-        self._aura_t     = 0.0
+		# ── AI ────────────────────────────────────────────────────────
+		self.can_attack      = True
+		self.attack_cooldown = 1200
+		self.attack_time     = 0
+		self.hit_cooldown    = 500
+		self.hit_time        = 0
+		self.is_hit          = False
 
-        # Font per nome e barra HP
-        font_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            '..', 'font', 'joystix.ttf'
-        )
-        try:
-            self._font_name = pygame.font.Font(font_path, 12)
-            self._font_hp   = pygame.font.Font(font_path, 10)
-        except Exception:
-            self._font_name = pygame.font.SysFont('Arial', 12, bold=True)
-            self._font_hp   = pygame.font.SysFont('Arial', 10)
+		# Posizione base per idle bob
+		self._base_y = float(pos[1])
+		self._anim_t = 0.0
 
-    def _make_sprite(self):
-        """Genera lo sprite del boss proceduralmente."""
-        size = 96
-        # Usiamo convert_alpha() invece di SRCALPHA diretto per compatibilità col Y-sort
-        surf = pygame.Surface((size, size))
-        surf.fill((255, 0, 255))   # magenta = colore trasparente
-        surf.set_colorkey((255, 0, 255))
+		# ── Font barra HP ─────────────────────────────────────────────
+		font_path = os.path.join(
+			os.path.dirname(os.path.abspath(__file__)),
+			'..', 'font', 'joystix.ttf'
+		)
+		try:
+			self._font_name = pygame.font.Font(font_path, 12)
+			self._font_hp   = pygame.font.Font(font_path, 10)
+		except Exception:
+			self._font_name = pygame.font.SysFont('Arial', 12, bold=True)
+			self._font_hp   = pygame.font.SysFont('Arial', 10)
 
-        # Corpo principale — figura oscura imponente
-        body_color  = (40,  20,  50)
-        armor_color = (60,  35,  80)
-        edge_color  = (100, 60, 120)
-        eye_color   = (220, 60,  60)
-        rune_color  = (140, 80, 180)
+	# ── Caricamento animazioni ─────────────────────────────────────────────
 
-        # Mantello/corpo
-        pygame.draw.ellipse(surf, body_color,  (16, 28, 64, 60))
-        pygame.draw.ellipse(surf, armor_color, (20, 32, 56, 52))
+	def _load_animations(self):
+		base = os.path.join(
+			os.path.dirname(os.path.abspath(__file__)),
+			'..', 'graphics', 'boss'
+		)
 
-        # Armatura pettorale
-        pygame.draw.rect(surf, armor_color, (28, 36, 40, 30), border_radius=4)
-        pygame.draw.rect(surf, edge_color,  (28, 36, 40, 30), 2, border_radius=4)
+		keys = [
+			'up', 'down', 'left', 'right',
+			'up_idle', 'down_idle', 'left_idle', 'right_idle',
+			'up_attack', 'down_attack', 'left_attack', 'right_attack',
+			'death',
+		]
+		animations = {k: [] for k in keys}
 
-        # Testa con elmo
-        pygame.draw.ellipse(surf, body_color,  (22, 8,  52, 40))
-        pygame.draw.ellipse(surf, armor_color, (24, 10, 48, 36))
+		for anim_name in animations:
+			folder = os.path.join(base, anim_name)
+			if not os.path.exists(folder):
+				continue
+			files = sorted(
+				[f for f in os.listdir(folder) if f.endswith('.png')],
+				key=lambda x: int(''.join(filter(str.isdigit, x)) or 0)
+			)
+			for f in files:
+				surf = pygame.image.load(os.path.join(folder, f)).convert_alpha()
+				animations[anim_name].append(surf)
 
-        # Corna dell'elmo
-        pygame.draw.polygon(surf, edge_color, [(24, 16), (14, 2),  (28, 20)])
-        pygame.draw.polygon(surf, edge_color, [(72, 16), (82, 2),  (68, 20)])
+		# Fallback: se una direzione manca, usa quella disponibile
+		self._apply_fallbacks(animations)
+		return animations
 
-        # Occhi che brillano rosso
-        pygame.draw.ellipse(surf, eye_color, (32, 22, 12, 8))
-        pygame.draw.ellipse(surf, eye_color, (52, 22, 12, 8))
-        # Pupille
-        pygame.draw.ellipse(surf, (255, 120, 120), (35, 24, 6, 4))
-        pygame.draw.ellipse(surf, (255, 120, 120), (55, 24, 6, 4))
+	def _apply_fallbacks(self, anims):
+		"""Riempie animazioni mancanti con fallback ragionevoli."""
+		# Idle = primo frame del walk corrispondente
+		for d in ('up', 'down', 'left', 'right'):
+			if not anims[f'{d}_idle'] and anims[d]:
+				anims[f'{d}_idle'] = [anims[d][0]]
 
-        # Rune sull'armatura
-        for i, (rx, ry) in enumerate([(36, 42), (48, 42), (40, 52), (52, 52)]):
-            pygame.draw.circle(surf, rune_color, (rx, ry), 3)
-            pygame.draw.circle(surf, (200, 120, 255), (rx, ry), 1)
+		# Direzioni mancanti: usa left specchiato per right e viceversa
+		pairs = [('left', 'right'), ('up', 'down')]
+		for a, b in pairs:
+			for suffix in ('', '_idle', '_attack'):
+				ka, kb = f'{a}{suffix}', f'{b}{suffix}'
+				if anims[ka] and not anims[kb]:
+					anims[kb] = [f.copy() for f in anims[ka]]
+					# specchio orizzontale
+					anims[kb] = [pygame.transform.flip(f, True, False) for f in anims[kb]]
+				elif anims[kb] and not anims[ka]:
+					anims[ka] = [pygame.transform.flip(f, True, False) for f in anims[kb]]
 
-        # Spada/arma nella mano destra
-        pygame.draw.rect(surf, (80, 70, 90),  (74, 40, 8, 36))   # lama
-        pygame.draw.rect(surf, edge_color,    (74, 40, 8, 36), 1)
-        pygame.draw.rect(surf, (120, 100, 60),(70, 54, 16, 6))    # guardia
-        pygame.draw.rect(surf, (160, 140, 80),(76, 82, 4, 8))     # impugnatura
+		# Se death è vuota, usa down come ultimo frame
+		if not anims['death'] and anims['down']:
+			anims['death'] = [anims['down'][-1]]
 
-        # Aura oscura ai bordi (senza alpha — usiamo colorkey)
-        pygame.draw.ellipse(surf, (30, 10, 40), (2, 2, size-4, size-4), 2)
+		# Ultimo fallback assoluto: superficie magenta 128x160
+		fallback = pygame.Surface((128, 160), pygame.SRCALPHA)
+		fallback.fill((180, 0, 180, 200))
+		for k in anims:
+			if not anims[k]:
+				anims[k] = [fallback]
 
-        return surf
+	# ── Logica animazione ──────────────────────────────────────────────────
 
-    def _get_player_distance(self):
-        ev = pygame.math.Vector2(self.rect.center)
-        pv = pygame.math.Vector2(self.player.rect.center)
-        dist = ev.distance_to(pv)
-        direction = (pv - ev).normalize() if dist > 0 else pygame.math.Vector2()
-        return direction, dist
+	def _current_frames(self):
+		return self.animations.get(self.status, self.animations['down_idle'])
 
-    def _move(self, direction):
-        self.hitbox.x += direction.x * self.speed
-        self._collision('horizontal')
-        self.hitbox.y += direction.y * self.speed
-        self._collision('vertical')
-        self.rect.center = self.hitbox.center
+	def _get_status(self, direction_vec, distance):
+		"""Determina lo status corrente in base allo stato AI."""
+		if self.is_dead:
+			self.status = 'death'
+			return
 
-    def _collision(self, axis):
-        for sprite in self.obstacle_sprites:
-            if sprite.hitbox.colliderect(self.hitbox):
-                if axis == 'horizontal':
-                    if self.hitbox.x > sprite.hitbox.x:
-                        self.hitbox.left = sprite.hitbox.right
-                    else:
-                        self.hitbox.right = sprite.hitbox.left
-                else:
-                    if self.hitbox.y > sprite.hitbox.y:
-                        self.hitbox.top = sprite.hitbox.bottom
-                    else:
-                        self.hitbox.bottom = sprite.hitbox.top
+		# Determina facing dalla direzione di movimento
+		if distance > self.attack_radius and direction_vec.length() > 0:
+			if abs(direction_vec.x) >= abs(direction_vec.y):
+				self.facing = 'right' if direction_vec.x > 0 else 'left'
+			else:
+				self.facing = 'down' if direction_vec.y > 0 else 'up'
 
-    def _attack(self):
-        if self.can_attack:
-            self.player.take_damage(self.damage)
-            self.can_attack  = False
-            self.attack_time = pygame.time.get_ticks()
-            try:
-                import sound_manager
-                sound_manager.play('player_hit', volume=1.0)
-            except Exception:
-                pass
+		if distance <= self.attack_radius:
+			self.status = f'{self.facing}_attack'
+		elif distance <= self.aggro_radius:
+			self.status = self.facing           # walk
+		else:
+			self.status = f'{self.facing}_idle'
 
-    def _cooldowns(self):
-        now = pygame.time.get_ticks()
-        if not self.can_attack:
-            if now - self.attack_time >= self.attack_cooldown:
-                self.can_attack = True
-        if self.is_hit:
-            if now - self.hit_time >= self.hit_cooldown:
-                self.is_hit = False
+	def _animate(self):
+		frames = self._current_frames()
+		if not frames:
+			return
 
-    def take_damage(self, amount):
-        self.health  -= amount
-        self.is_hit   = True
-        self.hit_time = pygame.time.get_ticks()
-        try:
-            import sound_manager
-            sound_manager.play('enemy_death', volume=0.5)
-        except Exception:
-            pass
-        if self.health <= 0:
-            self.kill()
+		if self.is_dead:
+			# Animazione morte: va avanti e si ferma sull'ultimo frame
+			if not self._death_done:
+				self.frame_index += ANIM_SPEED_DEATH
+				if self.frame_index >= len(frames):
+					self.frame_index = len(frames) - 1
+					self._death_done = True
+		elif '_attack' in self.status:
+			self.frame_index += ANIM_SPEED_ATTACK
+			if self.frame_index >= len(frames):
+				self.frame_index = 0.0
+		else:
+			self.frame_index += ANIM_SPEED_WALK
+			if self.frame_index >= len(frames):
+				self.frame_index = 0.0
 
-    def _draw_boss_ui(self, screen, camera_offset):
-        """Disegna nome e barra HP del boss sopra di lui."""
-        sx = self.rect.centerx - camera_offset.x
-        sy = self.rect.top - camera_offset.y
+		self.image = frames[int(self.frame_index)]
+		# Mantieni il centro del rect rispetto all'hitbox
+		self.rect = self.image.get_rect(midbottom=self.hitbox.midbottom)
 
-        # Nome
-        name_surf = self._font_name.render(self.name, True, (220, 60, 60))
-        screen.blit(name_surf, (sx - name_surf.get_width() // 2, sy - 32))
+	# ── Movimento e collisioni ────────────────────────────────────────────
 
-        # Barra HP
-        bar_w = 120
-        bar_h = 8
-        bx    = sx - bar_w // 2
-        by    = sy - 18
+	def _get_player_distance(self):
+		ev   = pygame.math.Vector2(self.rect.center)
+		pv   = pygame.math.Vector2(self.player.rect.center)
+		dist = ev.distance_to(pv)
+		direction = (pv - ev).normalize() if dist > 0 else pygame.math.Vector2()
+		return direction, dist
 
-        # Sfondo
-        pygame.draw.rect(screen, (40, 10, 10), (bx, by, bar_w, bar_h), border_radius=3)
-        # Riempimento
-        fill_w = int((self.health / self.max_health) * bar_w)
-        if fill_w > 0:
-            color = (200, 40, 40) if self.health > self.max_health * 0.3 else (255, 80, 0)
-            pygame.draw.rect(screen, color, (bx, by, fill_w, bar_h), border_radius=3)
-        # Bordo
-        pygame.draw.rect(screen, (140, 30, 30), (bx, by, bar_w, bar_h), 1, border_radius=3)
+	def _move(self, direction):
+		self.hitbox.x += direction.x * self.speed
+		self._collision('horizontal')
+		self.hitbox.y += direction.y * self.speed
+		self._collision('vertical')
+		self.rect.midbottom = self.hitbox.midbottom
 
-    def update(self, events=[]):
-        self._anim_t += 0.05
-        self._aura_t += 0.03
+	def _collision(self, axis):
+		for sprite in self.obstacle_sprites:
+			if sprite.hitbox.colliderect(self.hitbox):
+				if axis == 'horizontal':
+					if self.hitbox.x > sprite.hitbox.x:
+						self.hitbox.left = sprite.hitbox.right
+					else:
+						self.hitbox.right = sprite.hitbox.left
+				else:
+					if self.hitbox.y > sprite.hitbox.y:
+						self.hitbox.top = sprite.hitbox.bottom
+					else:
+						self.hitbox.bottom = sprite.hitbox.top
 
-        direction, distance = self._get_player_distance()
-        self._cooldowns()
+	# ── Combattimento ─────────────────────────────────────────────────────
 
-        if distance <= self.attack_radius:
-            self.status = 'attack'
-            self._attack()
-        elif distance <= self.aggro_radius:
-            self.status = 'move'
-            self._move(direction)
-        else:
-            self.status = 'idle'
-            # Bob verticale in idle
-            self._idle_bob = math.sin(self._anim_t) * 3
-            self.rect.centery = int(self._base_y + self._idle_bob)
+	def _attack(self):
+		if self.can_attack:
+			self.player.take_damage(self.damage)
+			self.can_attack  = False
+			self.attack_time = pygame.time.get_ticks()
+			self.frame_index = 0.0   # riparte dall'inizio dell'animazione attacco
+			try:
+				import sound_manager
+				sound_manager.play('player_hit', volume=1.0)
+			except Exception:
+				pass
 
-        # Lampeggio quando colpito
-        if self.is_hit:
-            alpha = 100 if (pygame.time.get_ticks() // 60) % 2 == 0 else 255
-            self.image.set_alpha(alpha)
-        else:
-            self.image.set_alpha(255)
+	def _cooldowns(self):
+		now = pygame.time.get_ticks()
+		if not self.can_attack:
+			if now - self.attack_time >= self.attack_cooldown:
+				self.can_attack = True
+		if self.is_hit:
+			if now - self.hit_time >= self.hit_cooldown:
+				self.is_hit = False
+
+	def take_damage(self, amount):
+		if self.is_dead:
+			return
+		self.health  -= amount
+		self.is_hit   = True
+		self.hit_time = pygame.time.get_ticks()
+		try:
+			import sound_manager
+			sound_manager.play('enemy_death', volume=0.5)
+		except Exception:
+			pass
+		if self.health <= 0:
+			self.health  = 0
+			self.is_dead = True
+			self.frame_index = 0.0
+			self.status  = 'death'
+			# Non chiamare self.kill() subito: lascia finire l'animazione morte
+
+	# ── HUD boss ──────────────────────────────────────────────────────────
+
+	def draw_boss_ui(self, screen, camera_offset):
+		"""
+		Disegna nome e barra HP del boss sopra di lui.
+		Va chiamato dal castle_level DOPO il draw degli sprite,
+		passando lo screen e il camera_offset del YSortCameraGroup.
+		"""
+		if self.is_dead:
+			return
+
+		sx = self.rect.centerx - camera_offset.x
+		sy = self.rect.top     - camera_offset.y
+
+		# Nome
+		name_surf = self._font_name.render(self.name, True, (220, 60, 60))
+		screen.blit(name_surf, (sx - name_surf.get_width() // 2, sy - 36))
+
+		# Barra HP
+		bar_w = 140
+		bar_h = 10
+		bx    = sx - bar_w // 2
+		by    = sy - 20
+
+		pygame.draw.rect(screen, (40, 10, 10),   (bx, by, bar_w, bar_h), border_radius=4)
+		fill_w = int((self.health / self.max_health) * bar_w)
+		if fill_w > 0:
+			color = (200, 40, 40) if self.health > self.max_health * 0.3 else (255, 100, 0)
+			pygame.draw.rect(screen, color, (bx, by, fill_w, bar_h), border_radius=4)
+		pygame.draw.rect(screen, (140, 30, 30), (bx, by, bar_w, bar_h), 1, border_radius=4)
+
+	# ── Update principale ─────────────────────────────────────────────────
+
+	def update(self, events=[]):
+		self._anim_t += 0.05
+
+		direction, distance = self._get_player_distance()
+		self._cooldowns()
+
+		if self.is_dead:
+			self._animate()
+			# Rimuovi lo sprite solo quando l'animazione di morte è finita
+			if self._death_done:
+				self.kill()
+			return
+
+		self._get_status(direction, distance)
+
+		if distance <= self.attack_radius:
+			self._attack()
+		elif distance <= self.aggro_radius:
+			self._move(direction)
+		# else: idle — nessun movimento
+
+		self._animate()
+
+		# Lampeggio quando colpito
+		if self.is_hit:
+			alpha = 110 if (pygame.time.get_ticks() // 60) % 2 == 0 else 255
+			self.image.set_alpha(alpha)
+		else:
+			self.image.set_alpha(255)
